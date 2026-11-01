@@ -24,7 +24,7 @@ class LocalPocketTests(unittest.TestCase):
     def test_branding_and_theme(self):
         py = (ROOT / "tools/customize_pocket.py").read_text(encoding="utf-8")
         css = (ROOT / "web/pocket-theme.css").read_text(encoding="utf-8")
-        self.assertIn('name="tbenitz"', py)
+        self.assertIn('name="author" content="tbenitz"', py)
         self.assertIn("github.com/tbenitz", py)
         self.assertIn("pocket-export.js", py)
         self.assertIn("#62d6f6", css)
