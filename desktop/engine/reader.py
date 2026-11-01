@@ -1,4 +1,4 @@
-"""Single-run clipboard narration window. Clipboard is captured by the native launcher."""
+"""Single-run Pocket TTS clipboard reader. Audio is synthesized locally and played to completion."""
 import argparse
 import json
 import re
@@ -81,81 +81,47 @@ def run():
         try:
             import numpy as np
             import sounddevice as sd
-            if config.get('engine') == 'pocket':
-                import soundfile as sf
-                binary = Path(sys.executable).resolve().parent / 'pocket_engine' / 'pocket-tts.exe'
-                voice_path = Path(str(config.get('voice_path', '')))
-                if not binary.is_file():
-                    raise RuntimeError('Pocket TTS Windows engine missing from reader bundle')
-                if not voice_path.is_file():
-                    raise RuntimeError('Pocket reference audio is missing')
-                languages = {'en':'english', 'fr':'french', 'de':'german', 'es':'spanish', 'it':'italian', 'pt':'portuguese', 'nl':'dutch'}
-                lang = languages.get(str(config.get('lang', 'en')), 'english')
-                segments = split_text(text, size=650)
-                for i, segment in enumerate(segments):
-                    if stopped.is_set():
-                        break
-                    ready.append(f'Pocket TTS · generating {i+1} / {len(segments)}')
-                    wav_path = Path(args.input_file).parent / f'pocket_chunk_{i:04d}.wav'
-                    cmd = [str(binary), 'generate', '--text', segment, '--voice', str(voice_path), '--language', lang, '--output-path', str(wav_path)]
-                    stderr_path = Path(args.input_file).parent / f'pocket_stderr_{i:04d}.txt'
-                    with stderr_path.open('wb') as error_log:
-                        p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=error_log,
-                                             creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-                        while p.poll() is None:
-                            if stopped.wait(0.12):
-                                p.kill()
-                                p.wait()
-                                break
-                    if stopped.is_set():
-                        break
-                    stderr = stderr_path.read_text(encoding='utf-8', errors='replace')[-1500:]
-                    stderr_path.unlink(missing_ok=True)
-                    if p.returncode:
-                        raise RuntimeError('Pocket TTS failed: ' + stderr[-250:])
-                    samples, rate = sf.read(str(wav_path), dtype='float32')
-                    wav_path.unlink(missing_ok=True)
-                    if stopped.is_set():
-                        break
-                    ready.append(f'Pocket TTS · speaking {i+1} / {len(segments)}')
-                    sd.play(np.asarray(samples, dtype=np.float32).reshape(-1),
-                            samplerate=int(rate), blocking=True)
-                ready.append('Playback finished')
-                ready.append('__EXIT__')
-                return
-            from supertonic import TTS
-            tts = TTS(auto_download=True)
-            if stopped.is_set():
-                return
-            if config.get('style_path'):
-                style = tts.get_voice_style_from_path(str(config['style_path']))
-            else:
-                voice = str(config.get('voice', 'M1')).upper()
-                if voice not in {f'{prefix}{n}' for prefix in ('M', 'F') for n in range(1, 6)}:
-                    raise ValueError('Unsupported preset voice')
-                style = tts.get_voice_style(voice_name=voice)
-            speed = min(2.0, max(0.7, float(config.get('speed', 1.05))))
-            steps = min(12, max(2, int(config.get('steps', 8))))
-            lang = str(config.get('lang', 'en'))
-            if lang not in LANGS:
-                lang = 'en'
-            segments = split_text(text)
+            import soundfile as sf
+            binary = Path(sys.executable).resolve().parent / 'pocket_engine' / 'pocket-tts.exe'
+            voice_path = Path(str(config.get('voice_path', '')))
+            if not binary.is_file():
+                raise RuntimeError('Pocket TTS Windows engine missing from reader bundle')
+            if not voice_path.is_file():
+                raise RuntimeError('Pocket reference audio is missing')
+            languages = {'en':'english', 'fr':'french', 'de':'german', 'es':'spanish', 'it':'italian', 'pt':'portuguese', 'nl':'dutch'}
+            lang = languages.get(str(config.get('lang', 'en')), 'english')
+            segments = split_text(text, size=650)
             for i, segment in enumerate(segments):
                 if stopped.is_set():
                     break
-                ready.append(f'Reading {i+1} / {len(segments)}')
-                wav, _dur = tts.synthesize(segment, voice_style=style, lang=lang, speed=speed, total_steps=steps)
+                ready.append(f'Pocket TTS · generating {i+1} / {len(segments)}')
+                wav_path = Path(args.input_file).parent / f'pocket_chunk_{i:04d}.wav'
+                cmd = [str(binary), 'generate', '--text', segment, '--voice', str(voice_path), '--language', lang, '--output-path', str(wav_path)]
+                stderr_path = Path(args.input_file).parent / f'pocket_stderr_{i:04d}.txt'
+                with stderr_path.open('wb') as error_log:
+                    p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=error_log,
+                                         creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+                    while p.poll() is None:
+                        if stopped.wait(0.12):
+                            p.kill()
+                            p.wait()
+                            break
                 if stopped.is_set():
                     break
-                # Blocking playback, not just synthesis completion, determines end of task.
-                samples = np.asarray(wav, dtype=np.float32).reshape(-1)
-                if not samples.size:
-                    continue
-                rate = int(getattr(tts, 'sample_rate', 44100))
-                sd.play(samples, samplerate=rate, blocking=True)
+                stderr = stderr_path.read_text(encoding='utf-8', errors='replace')[-1500:]
+                stderr_path.unlink(missing_ok=True)
+                if p.returncode:
+                    raise RuntimeError('Pocket TTS failed: ' + stderr[-250:])
+                samples, rate = sf.read(str(wav_path), dtype='float32')
+                wav_path.unlink(missing_ok=True)
                 if stopped.is_set():
                     break
+                ready.append(f'Pocket TTS · speaking {i+1} / {len(segments)}')
+                sd.play(np.asarray(samples, dtype=np.float32).reshape(-1),
+                        samplerate=int(rate), blocking=True)
             ready.append('Playback finished')
+            ready.append('__EXIT__')
+            return
         except Exception as ex:
             ready.append('Error: ' + str(ex)[:110])
             traceback.print_exc()
