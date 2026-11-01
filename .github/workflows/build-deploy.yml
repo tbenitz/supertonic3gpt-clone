@@ -1,0 +1,74 @@
+name: Build Windows EXE and publish Studio
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Install native compilation tools for .NET AOT
+        shell: pwsh
+        run: |
+          # Hosted windows-2022 images provide Visual Studio Build Tools and the MSVC toolchain.
+          Write-Host 'Using installed Visual Studio C++ native toolchain'
+      - name: Prepare Python Supertonic reader
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r desktop/engine/requirements.txt
+          pyinstaller --clean --noconfirm --onedir --windowed --name reader `
+            --collect-all supertonic --collect-all onnxruntime `
+            --collect-all sounddevice --collect-all _sounddevice_data `
+            desktop/engine/reader.py
+          if (-not (Test-Path dist/reader/reader.exe)) { throw 'Reader build failed' }
+      - name: Build native Windows launcher
+        shell: pwsh
+        run: |
+          dotnet publish desktop/launcher/ClipboardVoiceLauncher.csproj `
+            -c Release -r win-x64 -p:PublishAot=true -o launcher-out
+          if (-not (Test-Path launcher-out/ClipboardVoiceLauncher.exe)) { throw 'Launcher build failed' }
+      - name: Make downloadable base EXE
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path web/download | Out-Null
+          Compress-Archive -Path dist/reader/* -DestinationPath runtime.zip -CompressionLevel Optimal
+          python tools/append_bundle.py launcher-out/ClipboardVoiceLauncher.exe runtime.zip web/download/ClipboardReader-Base.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-base-exe
+          path: web/download/ClipboardReader-Base.exe
+          retention-days: 14
+          compression-level: 0
+  deploy:
+    needs: windows
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-base-exe
+          path: web/download
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,65 @@
+name: Optional CPU voice cloning (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'Example recording or your own WAV committed to samples/ (public repo files are public)'
+        type: choice
+        options: [upstream-example, repo-wav]
+        default: upstream-example
+      sample_path:
+        description: 'For repo-wav: relative path under samples/; e.g. samples/reference.wav'
+        required: false
+        default: samples/reference.wav
+        type: string
+      training_steps:
+        description: 'Optimization steps (100-3000; more steps means much slower CPU runs)'
+        required: true
+        default: '300'
+        type: string
+permissions:
+  contents: read
+jobs:
+  clone-cpu:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Prepare training inputs and validate settings
+        env:
+          TRAIN_SOURCE: ${{ inputs.source }}
+          SAMPLE_PATH: ${{ inputs.sample_path }}
+          TRAIN_STEPS: ${{ inputs.training_steps }}
+        run: |
+          python tools/prepare_cpu_clone.py
+      - name: Install audio tools, pinned extractor and CPU dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg libsndfile1 libgomp1 libgl1
+          git clone https://github.com/saurabhv749/supertonic3-voice-clone.git cloner
+          git -C cloner checkout 765ce5e27daa8d30937e2d0d8f9730280add5748
+          python -m pip install --upgrade pip
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1
+          python -m pip install -r cloner/requirements.txt huggingface_hub
+          hf download Supertone/supertonic-3 --local-dir cloner/supertonic3 --quiet
+      - name: Normalize and clone on CPU
+        env:
+          CUDA_VISIBLE_DEVICES: ''
+        run: |
+          if [ -f sample-input.wav ]; then
+            cp sample-input.wav /tmp/clone-voice.wav
+          else
+            cp cloner/voices/F6.wav /tmp/clone-voice.wav
+          fi
+          ffmpeg -hide_banner -loglevel error -nostdin -y -i /tmp/clone-voice.wav -t 120 -ar 22050 -ac 1 cloner/voices/reference.wav
+          cd cloner
+          python -u train_style.py --name personal --target-wav-path voices/reference.wav --reference-style auto --num-steps "$(cat ../training-steps.txt)" --save-steps "$(cat ../training-steps.txt)"
+      - name: Download voice JSON from Actions artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: supertonic3-voice-style-json
+          path: cloner/logs/personal/personal.json
+          if-no-files-found: error
+          retention-days: 3

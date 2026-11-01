@@ -1,0 +1,20 @@
+# CPU-only private voice trainer. Image is large because the trainer converts
+# ONNX weights to torch to compute gradients; 3000 CPU steps may take many hours.
+FROM python:3.11-slim-bookworm
+ENV DEBIAN_FRONTEND=noninteractive PIP_NO_CACHE_DIR=1 PYTHONUNBUFFERED=1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git ffmpeg libsndfile1 libgomp1 libgl1 && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+RUN git clone https://github.com/saurabhv749/supertonic3-voice-clone.git cloner \
+ && cd cloner && git checkout 765ce5e27daa8d30937e2d0d8f9730280add5748
+COPY backend/requirements.txt /app/server-requirements.txt
+RUN python -m pip install --upgrade pip \
+ && python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 \
+ && python -m pip install -r /app/server-requirements.txt \
+ && python -m pip install -r /app/cloner/requirements.txt huggingface_hub
+RUN hf download Supertone/supertonic-3 --local-dir /app/cloner/supertonic3 --quiet
+COPY backend/app.py /app/app.py
+RUN mkdir -p /tmp/voice_jobs && chmod 700 /tmp/voice_jobs
+ENV CLONER_DIR=/app/cloner JOBS_DIR=/tmp/voice_jobs CLONE_DEVICE=cpu CLONE_STEPS=600
+EXPOSE 7860
+CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1"]
