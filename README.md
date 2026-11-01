@@ -1,5 +1,16 @@
 # Supertonic3GPT Clone
 
+## New: entirely on-device Pocket TTS cloning
+
+Open the published website and select **Local audio clone · Pocket TTS**. Record a short sample or select an audio file, confirm that you own the voice or have permission to clone it, then select **Download personalized EXE**. The browser converts the sample to 24-kHz mono WAV and embeds it directly in your Windows executable. No audio, embeddings or text are sent to a cloning API.
+
+To preview actual cloned speech **in the browser**, click **Open Pocket TTS live voice preview**. This opens the Pocket Voice ONNX Runtime Web/WASM implementation under `/pocket/`, built from a pinned revision of [Hemanth HM's Pocket Voice](https://github.com/hemanth/pocket-voice) (MIT). It accepts microphone recordings or uploaded clips, runs inference locally with models downloaded from Hugging Face, and caches models/voice data in the browser. Re-select your recording in the preview tab; the two pages do not currently share audio automatically.
+
+**Windows:** GitHub Actions packages the official [Kyutai Pocket TTS](https://github.com/kyutai-labs/pocket-tts/releases/tag/v4.0.1) standalone x64 CLI alongside the existing Supertonic reader. When launched, it captures clipboard text, processes the embedded recording locally to condition the Pocket model, synthesizes speech, plays the WAV to its actual end, and exits; Stop cancels generation and playback. First use requires downloading Pocket TTS model assets; later inference runs locally.
+
+Pocket TTS does **zero-shot voice conditioning**. It does not generate Supertonic's `style_ttl/style_dp` JSON; the two voice formats cannot simply be interchanged. The original Supertonic preset/JSON export paths and optional experimental CPU/GPU voice optimizer are retained separately. The Pocket Windows engine and browser preview must be verified by the first GitHub Actions deployment and a Windows machine before distributing widely.
+
+
 **A GitHub Pages voice-builder website + GitHub Actions Windows EXE builder + optional CPU/GPU voice-style extraction.**
 
 This repository is a **testable starter**, not a production voice-cloning SaaS. Its source and formatting tests run locally, but the full Windows compilation and model extraction need their first real GitHub Actions / CPU or GPU test. Please check the Actions logs before distributing any EXE.
@@ -12,7 +23,7 @@ This repository is a **testable starter**, not a production voice-cloning SaaS. 
 - **Download a personalized EXE:** browser embeds profile into an already-built Windows application **without sending JSON to GitHub**. The same published EXE engine is reused for everybody.
 - **Read clipboard:** when launched on Windows x64, it captures the current text clipboard. The red floating Stop button interrupts speaking, and the application exits **after actual blocking audio playback completes**. You can launch it again later; no perpetual background process.
 
-**Important limits:** GitHub Pages is a static host. It does not run PyTorch or voice cloning jobs. GitHub Actions builds the EXE, and can perform a **manual CPU voice-style extraction** using an upstream example recording or a WAV explicitly committed to this repository. It **cannot directly accept private anonymous website audio uploads**. Do not commit private voice samples into a public repo.
+**Important limits for Supertonic custom voice JSON:** GitHub Pages is a static host. It does not run Supertonic's gradient-based PyTorch voice-cloning jobs. Pocket TTS voice cloning does run entirely on-device in the browser. GitHub Actions builds the EXE, and can perform a **manual CPU voice-style extraction** using an upstream example recording or a WAV explicitly committed to this repository. It **cannot directly accept private anonymous website audio uploads**. Do not commit private voice samples into a public repo.
 
 ## 1. Create the brand-new GitHub repository
 
