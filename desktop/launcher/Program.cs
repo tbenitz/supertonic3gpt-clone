@@ -99,7 +99,7 @@ static class Program
             string configJson = "{\"voice\":\"M1\",\"lang\":\"en\",\"speed\":1.05,\"steps\":8}";
             if (ReadFooter(fs, ref end, "CVRCFG01", out var configStart, out var configLen))
             {
-                if (configLen > 2_000_000) throw new InvalidDataException("Voice config is too large");
+                if (configLen > 8_000_000) throw new InvalidDataException("Voice config is too large");
                 byte[] bytes = new byte[(int)configLen];
                 fs.Position = configStart;
                 fs.ReadExactly(bytes);
@@ -141,6 +141,17 @@ static class Program
                 var lang = cfg.TryGetProperty("lang", out var pLang) ? (pLang.GetString() ?? "en") : "en";
                 var speed = cfg.TryGetProperty("speed", out var pSpeed) ? pSpeed.GetDouble() : 1.05;
                 var steps = cfg.TryGetProperty("steps", out var pSteps) ? pSteps.GetInt32() : 8;
+                var engineMode = cfg.TryGetProperty("engine", out var pEngine) && pEngine.GetString() == "pocket" ? "pocket" : "supertonic";
+                string? pocketVoicePath = null;
+                if (engineMode == "pocket")
+                {
+                    if (!cfg.TryGetProperty("voice_wav_b64", out var pAudio)) throw new InvalidDataException("Pocket reference recording is missing");
+                    var audio = Convert.FromBase64String(pAudio.GetString() ?? "");
+                    if (audio.Length < 44 || audio.Length > 5_000_000 || Encoding.ASCII.GetString(audio, 0, 4) != "RIFF" || Encoding.ASCII.GetString(audio, 8, 4) != "WAVE")
+                        throw new InvalidDataException("Invalid Pocket WAV recording");
+                    pocketVoicePath = Path.Combine(job, "voice.wav");
+                    File.WriteAllBytes(pocketVoicePath, audio);
+                }
                 string? customStyle = null;
                 if (cfg.TryGetProperty("style", out var style) && style.ValueKind == JsonValueKind.Object)
                 {
@@ -149,7 +160,7 @@ static class Program
                 }
                 File.WriteAllText(configPath, JsonSerializer.Serialize(new ReaderProfile
                 {
-                    Voice = voice, Language = lang, Speed = speed, Steps = steps, StylePath = customStyle
+                    Voice = voice, Language = lang, Speed = speed, Steps = steps, StylePath = customStyle, Engine = engineMode, VoicePath = pocketVoicePath
                 }, ReaderProfileJsonContext.Default.ReaderProfile), Encoding.UTF8);
                 using var process = Process.Start(new ProcessStartInfo
                 {
@@ -172,6 +183,8 @@ static class Program
 
 internal sealed class ReaderProfile
 {
+    [JsonPropertyName("engine")] public string Engine { get; set; } = "supertonic";
+    [JsonPropertyName("voice_path")] public string? VoicePath { get; set; }
     [JsonPropertyName("voice")] public string Voice { get; set; } = "M1";
     [JsonPropertyName("lang")] public string Language { get; set; } = "en";
     [JsonPropertyName("speed")] public double Speed { get; set; } = 1.05;
