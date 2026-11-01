@@ -1,30 +1,50 @@
-"""Static checks for the local Pocket TTS workflow."""
-from pathlib import Path
+"""Regression tests for the Pocket-only website and Windows export."""
 import unittest
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
 class LocalPocketTests(unittest.TestCase):
-    def test_browser_local_audio_and_export(self):
-        page = (ROOT / "web/index.html").read_text(encoding="utf-8")
-        for marker in ('data-tab="pocket"', 'getUserMedia', 'encodePocketReference',
-                       'profile.voice_wav_b64=await encodePocketReference(pocketClip)',
-                       'href="./pocket/"'):
-            self.assertIn(marker, page)
-    def test_native_launcher_extracts_voice(self):
-        source = (ROOT / "desktop/launcher/Program.cs").read_text(encoding="utf-8")
-        self.assertIn('voice_wav_b64', source)
-        self.assertIn('VoicePath = pocketVoicePath', source)
-    def test_reader_uses_blocking_audio_and_stop(self):
-        source = (ROOT / "desktop/engine/reader.py").read_text(encoding="utf-8")
-        self.assertIn("config.get('engine') == 'pocket'", source)
-        self.assertIn("'--output-path', str(wav_path)", source)
-        self.assertIn('p.kill()', source)
-        self.assertIn('blocking=True', source)
-    def test_pocket_assets_are_deployed(self):
+    def test_root_is_pocket_only(self):
+        html = (ROOT / "web/index.html").read_text(encoding="utf-8")
+        self.assertIn("pocket/", html)
+        self.assertIn("tbenitz", html)
+        self.assertNotIn("Supertonic", html)
+
+    def test_sample_preview_before_export(self):
+        js = (ROOT / "web/pocket-export.js").read_text(encoding="utf-8")
+        self.assertIn("app.lastClonedPCM", js)
+        self.assertIn("app.finalizePlayback", js)
+        self.assertIn("auditionedSerial === clonedSerial", js)
+        self.assertIn("button.disabled = !eligible()", js)
+        self.assertIn("consent.checked", js)
+        self.assertIn("CVRCFG01", js)
+        self.assertIn("voice_wav_b64", js)
+
+    def test_branding_and_theme(self):
+        py = (ROOT / "tools/customize_pocket.py").read_text(encoding="utf-8")
+        css = (ROOT / "web/pocket-theme.css").read_text(encoding="utf-8")
+        self.assertIn('name="tbenitz"', py)
+        self.assertIn("github.com/tbenitz", py)
+        self.assertIn("pocket-export.js", py)
+        self.assertIn("#62d6f6", css)
+
+    def test_native_reader_uses_pocket_only(self):
+        reader = (ROOT / "desktop/engine/reader.py").read_text(encoding="utf-8")
+        launcher = (ROOT / "desktop/launcher/Program.cs").read_text(encoding="utf-8")
+        self.assertIn("pocket-tts.exe", reader)
+        self.assertIn("'--output-path', str(wav_path)", reader)
+        self.assertIn("blocking=True", reader)
+        self.assertIn("p.kill()", reader)
+        self.assertNotIn("from supertonic", reader)
+        self.assertIn("voice_wav_b64", launcher)
+
+    def test_deployment_is_integrated(self):
         workflow = (ROOT / ".github/workflows/build-deploy.yml").read_text(encoding="utf-8")
-        self.assertIn('a4496c429f1dcd6ea8faef55a21dc4b7d45636a9', workflow)
-        self.assertIn('pocket-tts-3.3.0-x86_64-pc-windows-msvc.zip', workflow)
+        self.assertIn("tools/customize_pocket.py", workflow)
+        self.assertIn("web/pocket-theme.css", workflow)
+        self.assertIn("web/pocket-export.js", workflow)
+        self.assertIn("pocket-tts-3.3.0-x86_64-pc-windows-msvc.zip", workflow)
 
 if __name__ == "__main__":
     unittest.main()
