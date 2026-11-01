@@ -1,0 +1,44 @@
+
+/* Match the main Supertonic3GPT Clone slate/navy/cyan palette.
+   Original Pocket Voice CSS remains MIT-licensed in the upstream repository. */
+:root{
+  --bg-0:#080e1c;--bg-1:#0c1627;--bg-2:#111b2d;--bg-3:#142239;--bg-4:#1a3046;
+  --border:rgba(137,185,215,.17);--border-hover:rgba(137,185,215,.36);
+  --border-accent:rgba(98,214,246,.43);
+  --accent:#62d6f6;--accent-muted:#57bbd8;
+  --accent-surface:rgba(98,214,246,.10);--accent-surface-hover:rgba(98,214,246,.17);
+  --text-0:#e9f3ff;--text-1:#b7cbe0;--text-2:#9daec5;--text-3:#8099b5;
+  --danger:#ef5777;--danger-surface:rgba(239,87,119,.12);
+  --success:#a4ebbf;--warning:#f4c56b;
+  --sans:Inter,"Segoe UI",system-ui,Arial,sans-serif;
+  --display:Inter,"Segoe UI",system-ui,Arial,sans-serif;
+}
+html,body{background:#080e1c;color:#b7cbe0}
+body{background:radial-gradient(circle at 15% -15%,#173b59 0,transparent 38%) fixed,#080e1c}
+.nav{background:rgba(8,14,28,.90)}
+.hero__title,.app-section__title{font-weight:850;letter-spacing:-.045em;line-height:1.12}
+.hero__title em{color:#62d6f6}
+.panel{background:linear-gradient(145deg,#142239,#101827);border-color:#253650;box-shadow:0 12px 30px #0002;border-radius:18px}
+.grain{opacity:.012}
+.hero{min-height:auto}
+.btn-primary,.btn-generate{border-radius:11px;background:linear-gradient(90deg,#4fcef1,#92e5fd);color:#0a1421}
+.btn-generate:hover,.btn-primary:hover{filter:brightness(1.06)}
+.hero::before{opacity:.17}
+.export-panel{margin:25px 0 0;padding:27px}
+.export-panel__head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px}
+.export-panel__step{color:#62d6f6;font-size:12px;letter-spacing:.15em;font-weight:800}
+.export-panel__pill{border:1px solid #317491;border-radius:50px;color:#8fdef5;padding:7px 12px;font-size:12px}
+.export-panel h2{color:#e9f3ff;font-size:25px;letter-spacing:-.03em;font-weight:850;margin:0 0 9px}
+.export-panel p{color:#a5bdd3;font-size:14px;line-height:1.6}
+.export-panel__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:20px 0}
+.export-panel__check{border:1px solid #2d4a62;border-radius:12px;background:#0d1d2e;color:#62d6f6;padding:13px;font-size:13px;font-weight:750}
+.export-panel__check span{color:#c2d7e6;margin-left:8px;font-weight:500}
+.export-panel__consent{display:flex;gap:10px;align-items:flex-start;color:#c1d7e6;font-size:13px;margin:16px 0;line-height:1.5}
+.export-panel__consent input{margin:3px 0 0;accent-color:#62d6f6;transform:scale(1.15)}
+.export-panel__download{display:block;width:100%;min-height:50px;font-weight:800;font-size:14px;cursor:pointer}
+.export-panel__download:disabled{opacity:.4;cursor:not-allowed;filter:grayscale(.5)}
+.export-panel__status{margin-top:13px;background:#0e1b2b;border:1px solid #2b465f;color:#a4ebbf;padding:12px;border-radius:10px;font-size:13px;line-height:1.55}
+.export-panel__status.is-error{color:#ffb0bd;border-color:#6e3644}
+.export-panel p.export-panel__fine{font-size:12px;color:#94aac2;margin-top:17px}
+.footer{border-top:1px solid #253650}
+@media(max-width:700px){.export-panel{padding:19px}.export-panel__grid{grid-template-columns:1fr}}
