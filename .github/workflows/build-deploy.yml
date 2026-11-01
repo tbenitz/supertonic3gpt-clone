@@ -26,14 +26,13 @@ jobs:
         run: |
           # Hosted windows-2022 images provide Visual Studio Build Tools and the MSVC toolchain.
           Write-Host 'Using installed Visual Studio C++ native toolchain'
-      - name: Prepare Python Supertonic reader
+      - name: Prepare Pocket TTS clipboard reader
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r desktop/engine/requirements.txt
           pyinstaller --clean --noconfirm --onedir --windowed --name reader `
-            --collect-all supertonic --collect-all onnxruntime `
-            --collect-all sounddevice --collect-all _sounddevice_data `
+            --collect-all sounddevice --collect-all _sounddevice_data --collect-all soundfile `
             desktop/engine/reader.py
           if (-not (Test-Path dist/reader/reader.exe)) { throw 'Reader build failed' }
       - name: Add official Pocket TTS CPU runtime for Windows x64
@@ -90,7 +89,10 @@ jobs:
             cp "/tmp/pocket-voice-src/$f" "web/pocket/$f"
           done
           sed -i 's|/ai/pocket-voice/favicon.svg|./favicon.svg|g;s|/ai/pocket-voice/og-image.png|./favicon.svg|g' web/pocket/index.html
-          printf '%s\n' 'Pocket Voice browser studio: MIT © Hemanth HM (https://github.com/hemanth/pocket-voice)' 'ONNX weights: Kyutai / KevinAHM. Model license applies.' > web/pocket/ATTRIBUTION.txt
+          cp web/pocket-theme.css web/pocket/pocket-theme.css
+          cp web/pocket-export.js web/pocket/pocket-export.js
+          printf '%s\\n' 'Website adaptation and Windows exporter: tbenitz (https://github.com/tbenitz)' 'Original browser studio: Hemanth HM, Pocket Voice (MIT): https://github.com/hemanth/pocket-voice' 'Pocket TTS models: Kyutai: https://github.com/kyutai-labs/pocket-tts' 'ONNX port: KevinAHM: https://huggingface.co/spaces/KevinAHM/pocket-tts-web' > web/pocket/ATTRIBUTION.txt
+          python tools/customize_pocket.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
