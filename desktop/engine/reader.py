@@ -98,16 +98,19 @@ def run():
                     ready.append(f'Pocket TTS · generating {i+1} / {len(segments)}')
                     wav_path = Path(args.input_file).parent / f'pocket_chunk_{i:04d}.wav'
                     cmd = [str(binary), 'generate', '--text', segment, '--voice', str(voice_path), '--language', lang, '--output-path', str(wav_path)]
-                    p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
-                                         creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-                    while p.poll() is None:
-                        if stopped.wait(0.12):
-                            p.kill()
-                            p.wait()
-                            break
+                    stderr_path = Path(args.input_file).parent / f'pocket_stderr_{i:04d}.txt'
+                    with stderr_path.open('wb') as error_log:
+                        p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=error_log,
+                                             creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+                        while p.poll() is None:
+                            if stopped.wait(0.12):
+                                p.kill()
+                                p.wait()
+                                break
                     if stopped.is_set():
                         break
-                    stderr = p.stderr.read().decode('utf-8', errors='replace')[-1500:] if p.stderr else ''
+                    stderr = stderr_path.read_text(encoding='utf-8', errors='replace')[-1500:]
+                    stderr_path.unlink(missing_ok=True)
                     if p.returncode:
                         raise RuntimeError('Pocket TTS failed: ' + stderr[-250:])
                     samples, rate = sf.read(str(wav_path), dtype='float32')
