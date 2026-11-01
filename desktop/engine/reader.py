@@ -97,7 +97,7 @@ def run():
                         break
                     ready.append(f'Pocket TTS · generating {i+1} / {len(segments)}')
                     wav_path = Path(args.input_file).parent / f'pocket_chunk_{i:04d}.wav'
-                    cmd = [str(binary), 'generate', '--text', segment, '--voice', str(voice_path), '--language', lang, '--output', str(wav_path)]
+                    cmd = [str(binary), 'generate', '--text', segment, '--voice', str(voice_path), '--language', lang, '--output-path', str(wav_path)]
                     p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                                          creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
                     while p.poll() is None:
