@@ -88,7 +88,6 @@ jobs:
           for f in index.html app.js inference-worker.js main-thread-worker-shim.js PCMPlayerWorklet.js EventEmitter.js sentencepiece.js style.css favicon.svg; do
             cp "/tmp/pocket-voice-src/$f" "web/pocket/$f"
           done
-          sed -i 's|/ai/pocket-voice/favicon.svg|./favicon.svg|g;s|/ai/pocket-voice/og-image.png|./favicon.svg|g' web/pocket/index.html
           cp web/pocket-theme.css web/pocket/pocket-theme.css
           cp web/pocket-export.js web/pocket/pocket-export.js
           printf '%s\\n' 'Website adaptation and Windows exporter: tbenitz (https://github.com/tbenitz)' 'Original browser studio: Hemanth HM, Pocket Voice (MIT): https://github.com/hemanth/pocket-voice' 'Pocket TTS models: Kyutai: https://github.com/kyutai-labs/pocket-tts' 'ONNX port: KevinAHM: https://huggingface.co/spaces/KevinAHM/pocket-tts-web' > web/pocket/ATTRIBUTION.txt
