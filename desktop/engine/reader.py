@@ -88,9 +88,11 @@ def run():
                 raise RuntimeError('Pocket TTS Windows engine missing from reader bundle')
             if not voice_path.is_file():
                 raise RuntimeError('Pocket reference audio is missing')
-            languages = {'en':'english', 'fr':'french', 'de':'german', 'es':'spanish', 'it':'italian', 'pt':'portuguese', 'nl':'dutch'}
-            lang = languages.get(str(config.get('lang', 'en')), 'english')
-            segments = split_text(text, size=650)
+            supported = {'english_2026-04', 'english', 'german', 'spanish', 'italian', 'portuguese'}
+            lang = str(config.get('lang', 'english_2026-04'))
+            if lang not in supported:
+                raise ValueError('Unsupported Pocket TTS language')
+            segments = split_text(text, size=250)
             for i, segment in enumerate(segments):
                 if stopped.is_set():
                     break
