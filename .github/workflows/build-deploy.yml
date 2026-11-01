@@ -36,6 +36,17 @@ jobs:
             --collect-all sounddevice --collect-all _sounddevice_data `
             desktop/engine/reader.py
           if (-not (Test-Path dist/reader/reader.exe)) { throw 'Reader build failed' }
+      - name: Add official Pocket TTS CPU runtime for Windows x64
+        shell: pwsh
+        run: |
+          $url = 'https://github.com/kyutai-labs/pocket-tts/releases/download/v4.0.1/pocket-tts-3.3.0-x86_64-pc-windows-msvc.zip'
+          Invoke-WebRequest -Uri $url -OutFile pocket-cli.zip
+          Expand-Archive -Path pocket-cli.zip -DestinationPath pocket-unpacked -Force
+          $binary = Get-ChildItem -Path pocket-unpacked -Recurse -Filter pocket-tts.exe | Select-Object -First 1
+          if (-not $binary) { throw 'Official Pocket TTS Windows binary not found' }
+          New-Item -ItemType Directory -Force -Path dist/reader/pocket_engine | Out-Null
+          Copy-Item -Path (Join-Path $binary.Directory.FullName '*') -Destination dist/reader/pocket_engine -Recurse -Force
+          if (-not (Test-Path dist/reader/pocket_engine/pocket-tts.exe)) { throw 'Pocket TTS copy failed' }
       - name: Build native Windows launcher
         shell: pwsh
         run: |
@@ -66,6 +77,20 @@ jobs:
         with:
           name: windows-base-exe
           path: web/download
+      - name: Include browser-only Pocket TTS cloning studio
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init /tmp/pocket-voice-src
+          git -C /tmp/pocket-voice-src remote add origin https://github.com/hemanth/pocket-voice.git
+          git -C /tmp/pocket-voice-src fetch --depth 1 origin a4496c429f1dcd6ea8faef55a21dc4b7d45636a9
+          git -C /tmp/pocket-voice-src checkout --detach FETCH_HEAD
+          mkdir -p web/pocket
+          for f in index.html app.js inference-worker.js main-thread-worker-shim.js PCMPlayerWorklet.js EventEmitter.js sentencepiece.js style.css favicon.svg; do
+            cp "/tmp/pocket-voice-src/$f" "web/pocket/$f"
+          done
+          sed -i 's|/ai/pocket-voice/favicon.svg|./favicon.svg|g;s|/ai/pocket-voice/og-image.png|./favicon.svg|g' web/pocket/index.html
+          printf '%s\n' 'Pocket Voice browser studio: MIT © Hemanth HM (https://github.com/hemanth/pocket-voice)' 'ONNX weights: Kyutai / KevinAHM. Model license applies.' > web/pocket/ATTRIBUTION.txt
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
