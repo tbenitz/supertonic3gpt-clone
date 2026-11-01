@@ -23,7 +23,7 @@ change('<meta name="author" content="Hemanth HM">', '<meta name="author" content
 change('href="/ai/pocket-voice/favicon.svg"', 'href="./favicon.svg"')
 change('href="/ai/pocket-voice/og-image.png"', 'href="./favicon.svg"')
 change('content="https://h3manth.com/ai/pocket-voice/og-image.png"', 'content="./favicon.svg"')
-change('<meta name="twitter:creator" content="@anthropic">', '<meta name="twitter:creator" content="@tbenitz">')
+change('<meta name="twitter:creator" content="@anthropic">', '')
 change('"name": "Pocket Voice",', '"name": "tbenitz Pocket TTS Voice Studio",')
 change('"creator": { "@type": "Person", "name": "Hemanth HM", "url": "https://h3manth.com" }',
        '"creator": { "@type": "Person", "name": "tbenitz", "url": "https://github.com/tbenitz" }')
