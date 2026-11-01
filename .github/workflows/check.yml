@@ -21,7 +21,7 @@ jobs:
           from pathlib import Path
           import re
           html = Path('web/index.html').read_text(encoding='utf-8')
-          scripts = re.findall(r'<script(?:\\s[^>]*)?>([\\s\\S]*?)</script>', html)
+          scripts = [html.rsplit('<script>', 1)[1].split('</script>', 1)[0]] if '<script>' in html else []
           assert scripts, 'Missing website script'
           Path('/tmp/studio.js').write_text('\n'.join(scripts), encoding='utf-8')
           PY
