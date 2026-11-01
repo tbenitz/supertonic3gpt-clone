@@ -10,11 +10,11 @@
 </style>
 </head>
 <body><main class="container">
-<div class="bar"><div class="brand">◉ &nbsp;Supertonic3GPT Clone</div><div class="tag">Supertonic 3 · Windows</div></div>
+<div class="bar"><div class="brand">◉ &nbsp;Supertonic3GPT Clone</div><div class="tag">Pocket TTS + Supertonic 3 · Local-first</div></div>
 <h1>Give your clipboard a voice.</h1>
-<p class="intro">Use a built-in voice, import a Supertonic voice JSON, or clone from your own audio with an optional private CPU or GPU cloning service. Export one Windows EXE that speaks whatever you copy when launched — and closes after playback really finishes.</p>
+<p class="intro">Clone your voice locally in the browser with Pocket TTS (ONNX/WASM), or use Supertonic 3 preset and JSON voices. Export a Windows EXE that reads your clipboard and closes after playback ends. No voice recording needs to leave your device.</p>
 <div class="grid"><section class="panel"><h2>01 · Select a voice</h2>
-<div class="tabbar" role="tablist"><button class="tab active" data-tab="preset" type="button">Preset voice</button><button class="tab" data-tab="json" type="button">Upload voice JSON</button><button class="tab" data-tab="audio" type="button">Clone from audio</button></div>
+<div class="tabbar" role="tablist"><button class="tab active" data-tab="preset" type="button">Preset voice</button><button class="tab" data-tab="json" type="button">Upload voice JSON</button><button class="tab" data-tab="pocket" type="button">Local audio clone · Pocket TTS</button><button class="tab" data-tab="audio" type="button">Supertonic training (server)</button></div>
 <div id="preset"><div class="field"><label for="presetVoice">Supertonic 3 voice</label><select id="presetVoice"><option>M1</option><option>M2</option><option>M3</option><option>M4</option><option>M5</option><option>F1</option><option>F2</option><option>F3</option><option>F4</option><option>F5</option></select></div><p class="help">10 built-in styles. No cloning service required.</p></div>
 <div id="json" class="hide"><div class="field"><label for="jsonFile">Supertonic 3 voice-style file (.json)</label><input type="file" id="jsonFile" accept=".json,application/json"><p class="help">Requires style_ttl and style_dp vectors. Uploaded JSON stays in this browser until you export it.</p></div></div>
 <div id="audio" class="hide"><div class="field"><label for="audioFile" class="audioLabel"><span class="dot"></span>Consent-based voice recording</label><input id="audioFile" type="file" accept=".wav,.mp3,.flac,.ogg,.m4a,audio/*"><p class="help">Use clear speech, without background music. Max 25 MB. Cloning requires a separately deployed private CPU or GPU service. This static website cannot use GitHub Actions to train arbitrary visitor audio.</p></div>
@@ -23,28 +23,63 @@
 <label class="consent"><input id="consent" type="checkbox">I own this recording or have explicit permission from the person speaking to clone their voice.</label>
 <button id="cloneBtn" class="secondary" type="button">Generate voice JSON (CPU or GPU)</button>
 <button id="saveVoiceBtn" class="secondary hide" type="button" style="margin-top:9px">Download generated voice JSON</button><div class="help">Never upload someone's voice without their consent. Do not expose your backend token publicly.</div></div>
+<div id="pocket" class="hide"><div class="hintbox"><strong>Pocket TTS: entirely on your device.</strong> Upload or record a short sample. The ONNX/WASM browser preview clones locally, and the exported Windows app will use your recording with its local Pocket TTS engine. No cloning server.</div>
+<div class="field"><label for="pocketFile">Reference audio (3–30 seconds; 5–15 recommended)</label><input type="file" id="pocketFile" accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm"><p class="help">Use clean speech from one speaker. The export converts this file into a small 24-kHz mono WAV in your browser and embeds it in the EXE.</p></div>
+<div class="field"><button type="button" class="secondary" id="pocketRecord">Record voice locally</button> <button type="button" class="secondary hide" id="pocketStop">Stop recording</button><span id="pocketClipInfo" class="help">No sample selected.</span></div>
+<label class="consent"><input type="checkbox" id="pocketConsent">I own this recording or have explicit permission to clone this speaker's voice.</label>
+<div class="hintbox"><a style="color:#85def8;font-weight:750" href="./pocket/" target="_blank" rel="noopener">Open Pocket TTS live voice preview</a><div class="help">Cloning and synthesis run in-browser. In this separate preview, select the same reference audio again; it doesn't share files automatically with the EXE builder.</div></div></div>
 <hr style="border:0;border-top:1px solid var(--line);margin:26px 0"><h2>02 · Speech settings</h2>
 <div class="cols"><div class="field"><label for="lang">Language</label><select id="lang"></select></div><div class="field"><label for="quality">Synthesis quality</label><select id="quality"><option value="5">Fast</option><option value="8" selected>Balanced</option><option value="12">Highest</option></select></div></div>
 <div class="field"><label for="speed">Speaking speed <span id="speedValue">1.05×</span></label><input id="speed" type="range" min="0.7" max="2" step="0.05" value="1.05"></div>
 <hr style="border:0;border-top:1px solid var(--line);margin:24px 0"><h2>03 · Export your Windows EXE</h2>
-<button id="exportBtn" class="action download" type="button">Download personalized EXE</button><p class="mini">Windows 10/11 x64 · Model downloads (~400 MB) on first run · Local speech thereafter · No cloud TTS</p>
+<button id="exportBtn" class="action download" type="button">Download personalized EXE</button><p class="mini">Windows 10/11 x64 · First-use model download · Local voice and clipboard processing · No cloud TTS</p>
 <div id="status" class="status" role="status" aria-live="polite">Ready to customize.</div>
 </section>
-<aside><section class="panel"><h2>How your EXE works</h2><ol class="steps"><li><span class="num">1</span><span>Copy a paragraph, article, email, or other text to the Windows clipboard.</span></li><li><span class="num">2</span><span>Open your personalized <strong>ClipboardVoice.exe</strong> (or assign a Windows hotkey to its shortcut).</span></li><li><span class="num">3</span><span>A small floating <strong>red Stop button</strong> stays at the bottom-right while Supertonic generates and speaks your text.</span></li><li><span class="num">4</span><span>Press Stop to interrupt, or let speech finish. The application exits when the <strong>last audio sample has played</strong>, not when synthesis ends.</span></li></ol><div class="hintbox">Your clipboard is captured immediately when you launch the EXE. The Windows reader runs locally after the first model download. The private cloning service is only needed to generate a new voice JSON.</div></section>
-<section class="panel" style="margin-top:21px"><h2>Privacy and setup</h2><p>The website never commits uploaded voice files or embeddings to GitHub. When cloning, the recording is sent to the private cloning service you configure. Treat that service as a sensitive data processor.</p><p>Your personalized EXE contains the chosen voice JSON in its downloadable file, so don't distribute private voice profiles without permission.</p></section></aside></div>
-<div class="footer">Powered by Supertone Supertonic 3 · Model OpenRAIL-M license applies · Research extractor by saurabhv749 · Built with GitHub Actions</div></main>
+<aside><section class="panel"><h2>How your EXE works</h2><ol class="steps"><li><span class="num">1</span><span>Copy a paragraph, article, email, or other text to the Windows clipboard.</span></li><li><span class="num">2</span><span>Open your personalized <strong>ClipboardVoice.exe</strong> (or assign a Windows hotkey to its shortcut).</span></li><li><span class="num">3</span><span>A small floating <strong>red Stop button</strong> stays at the bottom-right while Supertonic generates and speaks your text.</span></li><li><span class="num">4</span><span>Press Stop to interrupt, or let speech finish. The application exits when the <strong>last audio sample has played</strong>, not when synthesis ends.</span></li></ol><div class="hintbox">Your clipboard is captured immediately when you launch the EXE. The Windows reader runs locally after the first model download. Pocket recordings are processed locally; a private service is needed only for training Supertonic JSON styles.</div></section>
+<section class="panel" style="margin-top:21px"><h2>Privacy and setup</h2><p>Pocket TTS mode processes your recording in the browser and embeds the reference WAV in the downloaded EXE. The separate legacy Supertonic training tab sends audio to your private backend only if you choose that option. Model files download from Hugging Face.</p><p>Your personalized EXE contains the chosen voice JSON in its downloadable file, so don't distribute private voice profiles without permission.</p></section></aside></div>
+<div class="footer">Powered by Supertonic 3 (OpenRAIL-M) and Kyutai Pocket TTS (CC BY 4.0 model weights) · Pocket browser code © Hemanth HM · Built with GitHub Actions</div></main>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
 const langs = [['en','English'],['es','Spanish'],['fr','French'],['de','German'],['it','Italian'],['pt','Portuguese'],['ja','Japanese'],['ko','Korean'],['ar','Arabic'],['hi','Hindi'],['nl','Dutch'],['pl','Polish'],['ru','Russian'],['sv','Swedish'],['tr','Turkish'],['vi','Vietnamese'],['cs','Czech'],['da','Danish'],['fi','Finnish'],['el','Greek'],['uk','Ukrainian'],['ro','Romanian'],['bg','Bulgarian'],['et','Estonian'],['hr','Croatian'],['hu','Hungarian'],['id','Indonesian'],['lt','Lithuanian'],['lv','Latvian'],['sk','Slovak'],['sl','Slovenian']];
 for (const [code,name] of langs) {const o=document.createElement('option');o.value=code;o.textContent=name;$('lang').append(o)}
-let mode='preset', importedVoice=null, voiceSource='';
+let mode='pocket', importedVoice=null, voiceSource='', pocketClip=null, micRecorder=null, micStream=null;
 const tell = (s,bad=false)=>{ $('status').textContent=s; $('status').className='status '+(bad?'bad':'good'); };
 document.querySelectorAll('[data-tab]').forEach(btn=>btn.addEventListener('click',()=>{
   mode=btn.dataset.tab;document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b===btn));
-  for(const id of ['preset','json','audio'])$(id).classList.toggle('hide',id!==mode);
-  tell(mode==='audio'?'Connect a private CPU or GPU cloning service, then extract a voice JSON.':'Voice mode selected.');
+  for(const id of ['preset','json','audio','pocket'])$(id).classList.toggle('hide',id!==mode);
+  const pocketLanguages=new Set(['en','de','es','fr','it','pt','nl']);
+  for(const o of $('lang').options)o.disabled=(mode==='pocket'&&!pocketLanguages.has(o.value));
+  if(mode==='pocket'&&!pocketLanguages.has($('lang').value))$('lang').value='en';
+  $('speed').disabled=mode==='pocket';$('quality').disabled=mode==='pocket';
+  tell(mode==='pocket'?'Choose or record a voice sample. This does not upload audio.':mode==='audio'?'Legacy Supertonic voice training uses your private backend; Pocket TTS above needs none.':'Voice mode selected.');
 }));
+document.querySelector('[data-tab="pocket"]').click();
+$('pocketFile').addEventListener('change',e=>{pocketClip=e.target.files?.[0]||null;$('pocketClipInfo').textContent=pocketClip?'Selected: '+pocketClip.name:'No sample selected.';});
+$('pocketRecord').addEventListener('click',async()=>{
+  try {
+    if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==='undefined')throw Error('Microphone recording needs HTTPS and a supported browser.');
+    micStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    const chunks=[];micRecorder=new MediaRecorder(micStream);
+    micRecorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+    micRecorder.onstop=()=>{pocketClip=new Blob(chunks,{type:micRecorder.mimeType||'audio/webm'});$('pocketClipInfo').textContent='Recorded '+(pocketClip.size/1024).toFixed(0)+' KB locally';micStream?.getTracks().forEach(t=>t.stop());$('pocketRecord').classList.remove('hide');$('pocketStop').classList.add('hide');tell('Voice recording ready to export.');};
+    micRecorder.start();$('pocketRecord').classList.add('hide');$('pocketStop').classList.remove('hide');tell('Recording microphone locally. Press Stop recording when finished.');
+  }catch(e){tell(String(e.message||e),true)}
+});
+$('pocketStop').addEventListener('click',()=>{if(micRecorder?.state==='recording')micRecorder.stop()});
+async function encodePocketReference(blob){
+  if(!blob||blob.size>25*1024*1024)throw Error('Choose a reference clip under 25 MB.');
+  const context=new (window.AudioContext||window.webkitAudioContext)();
+  let audio;try{audio=await context.decodeAudioData(await blob.arrayBuffer())}finally{await context.close()}
+  if(audio.duration<3||audio.duration>30)throw Error('Voice sample must be 3–30 seconds (5–15 recommended).');
+  const sr=24000,n=Math.floor(audio.duration*sr),channels=Array.from({length:audio.numberOfChannels},(_,i)=>audio.getChannelData(i));
+  const bytes=new Uint8Array(44+n*2),view=new DataView(bytes.buffer);
+  const ascii=(pos,str)=>{for(let i=0;i<str.length;i++)bytes[pos+i]=str.charCodeAt(i)};
+  ascii(0,'RIFF');view.setUint32(4,bytes.length-8,true);ascii(8,'WAVE');ascii(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,1,true);view.setUint32(24,sr,true);view.setUint32(28,sr*2,true);view.setUint16(32,2,true);view.setUint16(34,16,true);ascii(36,'data');view.setUint32(40,n*2,true);
+  for(let i=0;i<n;i++){const idx=Math.min(audio.length-1,Math.floor(i*audio.sampleRate/sr));let x=0;for(const ch of channels)x+=ch[idx]/channels.length;x=Math.max(-1,Math.min(1,x));view.setInt16(44+i*2,Math.round(x<0?x*32768:x*32767),true)}
+  let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+  return btoa(binary);
+}
 $('speed').addEventListener('input',()=>{$('speedValue').textContent=Number($('speed').value).toFixed(2)+'×'});
 function validateStyle(data){
   if(!data || typeof data !== 'object' || !data.style_ttl || !data.style_dp)throw Error('Not a Supertonic voice JSON (missing style_ttl/style_dp).');
@@ -87,10 +122,13 @@ $('saveVoiceBtn').addEventListener('click',()=>{if(importedVoice)saveFile(new Bl
 $('exportBtn').addEventListener('click',async()=>{
   const b=$('exportBtn');b.disabled=true;
   try{
-    if((mode==='audio'||mode==='json')&&(!importedVoice || voiceSource!==mode))throw Error('Import a valid JSON or finish cloning first.');
-    const profile={voice:$('presetVoice').value,lang:$('lang').value,speed:+$('speed').value,steps:+$('quality').value};
-    if(mode!=='preset')profile.style=importedVoice;
-    const payload=new TextEncoder().encode(JSON.stringify(profile));if(payload.byteLength>2_000_000)throw Error('Voice profile exceeds 2 MB.');
+    if((mode==='audio'||mode==='json')&&(!importedVoice || voiceSource!==mode))throw Error('Import a valid Supertonic JSON or finish training first.');
+    if(mode==='pocket'&&!pocketClip)throw Error('Upload or record a Pocket TTS voice sample first.');
+    if(mode==='pocket'&&!$('pocketConsent').checked)throw Error('Confirm you have permission to clone this voice.');
+    const profile={engine:mode==='pocket'?'pocket':'supertonic',voice:$('presetVoice').value,lang:$('lang').value,speed:+$('speed').value,steps:+$('quality').value};
+    if(mode==='pocket'){tell('Encoding your reference recording locally to WAV…');profile.voice_wav_b64=await encodePocketReference(pocketClip);}
+    else if(mode!=='preset')profile.style=importedVoice;
+    const payload=new TextEncoder().encode(JSON.stringify(profile));if(payload.byteLength>8_000_000)throw Error('Voice profile exceeds 8 MB.');
     const footer=new Uint8Array(16);footer.set(new TextEncoder().encode('CVRCFG01'),0);
     new DataView(footer.buffer).setBigUint64(8,BigInt(payload.byteLength),true);
     tell('Downloading the Windows engine template…');
@@ -99,7 +137,7 @@ $('exportBtn').addEventListener('click',async()=>{
     const engine=await response.blob();if(engine.size<500_000)throw Error('EXE template is unexpectedly small.');
     tell('Packaging your voice profile into the EXE…');
     saveFile(new Blob([engine,payload,footer],{type:'application/octet-stream'}),'ClipboardVoice.exe');
-    tell('Export complete. Open ClipboardVoice.exe on Windows 10/11 x64. First run downloads the Supertonic model.');
+    tell('Export complete. Open ClipboardVoice.exe on Windows 10/11 x64. First run downloads the selected model; speech and voice conditioning then run locally.');
   }catch(err){tell('Export failed: '+(err.message||err),true)}finally{b.disabled=false}
 });
 </script></body></html>
