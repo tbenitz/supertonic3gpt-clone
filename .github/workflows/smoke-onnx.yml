@@ -35,7 +35,13 @@ jobs:
           print("ONNX model files:", [p.name for p in (models / "english_2026-04").glob("*")])
           sample = hf_hub_download(repo_id="KevinAHM/pocket-tts-onnx", filename="reference_sample.wav", token=False)
           model = PocketTTSOnnx(models_dir=str(models), language="english_2026-04", precision="int8", device="cpu")
-          voice = model.encode_voice(sample)
+          source, source_rate = sf.read(sample, dtype="float32", always_2d=True)
+          mono = source.mean(axis=1)
+          if int(source_rate) != int(model.sample_rate):
+              positions = np.linspace(0, mono.size - 1, num=max(1, round(mono.size * model.sample_rate / source_rate)))
+              mono = np.interp(positions, np.arange(mono.size), mono).astype("float32")
+          sf.write("reference_24k.wav", mono, model.sample_rate, subtype="PCM_16")
+          voice = model.encode_voice("reference_24k.wav")
           print("Voice embedding shape:", np.asarray(voice).shape)
           chunks = [np.asarray(a).reshape(-1) for a in model.stream("Hello, this is a local voice cloning test.", voice=voice)]
           if not chunks:
