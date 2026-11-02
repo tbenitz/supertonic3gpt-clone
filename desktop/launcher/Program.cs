@@ -84,14 +84,43 @@ static class Program
         }
         return Convert.ToHexString(h.GetHashAndReset()).Substring(0, 16);
     }
-    static void Main()
+    // Build-time health check: Windows must successfully load and execute this PE,
+    // including after the bundle and a representative voice profile are appended.
+    static int SelfTest()
     {
+        try
+        {
+            var exe = Environment.ProcessPath ?? throw new InvalidDataException("No executable path");
+            using var stream = File.Open(exe, FileMode.Open, FileAccess.Read, FileShare.Read);
+            long end = stream.Length;
+            if (ReadFooter(stream, ref end, "CVRCFG01", out var start, out var length))
+            {
+                if (length <= 0 || length > 8_000_000)
+                    throw new InvalidDataException("Invalid voice profile size");
+                if (start < 0) throw new InvalidDataException("Invalid voice profile offset");
+            }
+            if (!ReadFooter(stream, ref end, "CVRZIP01", out var bundleStart, out var bundleLength))
+                throw new InvalidDataException("Invalid bundled reader");
+            if (bundleLength < 1_000_000)
+                throw new InvalidDataException("Reader bundle unexpectedly small");
+            stream.Position = bundleStart;
+            if (stream.ReadByte() != 'P' || stream.ReadByte() != 'K')
+                throw new InvalidDataException("Reader ZIP header invalid");
+            return 0;
+        }
+        catch { return 83; }
+    }
+
+    static int Main(string[] args)
+    {
+        if (args.Length == 1 && args[0] == "--self-test")
+            return SelfTest();
         var clipboard = ReadClipboard();
-        if (string.IsNullOrWhiteSpace(clipboard)) return;
+        if (string.IsNullOrWhiteSpace(clipboard)) return 0;
         if (clipboard.Length > 250_000)
         {
             MessageBoxW(IntPtr.Zero, "Clipboard exceeds the 250,000 character safety limit.", "Clipboard Voice", 0x10);
-            return;
+            return 1;
         }
         try
         {
@@ -179,7 +208,9 @@ static class Program
         catch (Exception ex)
         {
             MessageBoxW(IntPtr.Zero, ex.Message, "Clipboard Voice - Error", 0x10);
+            return 1;
         }
+        return 0;
     }
 }
 
