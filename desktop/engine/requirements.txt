@@ -1,4 +1,8 @@
 numpy>=1.26,<3
+onnxruntime>=1.19,<2
+sentencepiece>=0.2,<1
+safetensors>=0.4,<1
+huggingface_hub>=0.28,<2
 sounddevice>=0.5,<1
 soundfile>=0.12,<1
 pyinstaller>=6.11,<7

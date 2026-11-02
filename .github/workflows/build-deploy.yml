@@ -26,26 +26,24 @@ jobs:
         run: |
           # Hosted windows-2022 images provide Visual Studio Build Tools and the MSVC toolchain.
           Write-Host 'Using installed Visual Studio C++ native toolchain'
+      - name: Install pinned public Pocket TTS ONNX inference code
+        shell: pwsh
+        run: |
+          $revision = '58a6d00cf13d239b6748cb0769f35c580a8f606c'
+          $url = "https://huggingface.co/KevinAHM/pocket-tts-onnx/resolve/$revision/pocket_tts_onnx.py"
+          Invoke-WebRequest -Uri $url -OutFile desktop/engine/pocket_tts_onnx.py
+          python -m py_compile desktop/engine/pocket_tts_onnx.py
       - name: Prepare Pocket TTS clipboard reader
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r desktop/engine/requirements.txt
           pyinstaller --clean --noconfirm --onedir --windowed --name reader `
-            --collect-all sounddevice --collect-all _sounddevice_data --collect-all soundfile `
+            --collect-all onnxruntime --collect-all sentencepiece --collect-all safetensors `
+            --collect-all huggingface_hub --collect-all sounddevice --collect-all _sounddevice_data `
+            --collect-all soundfile --hidden-import pocket_tts_onnx `
             desktop/engine/reader.py
           if (-not (Test-Path dist/reader/reader.exe)) { throw 'Reader build failed' }
-      - name: Add official Pocket TTS CPU runtime for Windows x64
-        shell: pwsh
-        run: |
-          $url = 'https://github.com/kyutai-labs/pocket-tts/releases/download/v4.0.1/pocket-tts-3.3.0-x86_64-pc-windows-msvc.zip'
-          Invoke-WebRequest -Uri $url -OutFile pocket-cli.zip
-          Expand-Archive -Path pocket-cli.zip -DestinationPath pocket-unpacked -Force
-          $binary = Get-ChildItem -Path pocket-unpacked -Recurse -Filter pocket-tts.exe | Select-Object -First 1
-          if (-not $binary) { throw 'Official Pocket TTS Windows binary not found' }
-          New-Item -ItemType Directory -Force -Path dist/reader/pocket_engine | Out-Null
-          Copy-Item -Path (Join-Path $binary.Directory.FullName '*') -Destination dist/reader/pocket_engine -Recurse -Force
-          if (-not (Test-Path dist/reader/pocket_engine/pocket-tts.exe)) { throw 'Pocket TTS copy failed' }
       - name: Build native Windows launcher
         shell: pwsh
         run: |
