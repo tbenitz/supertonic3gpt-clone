@@ -117,17 +117,51 @@
       };
       const payload = new TextEncoder().encode(JSON.stringify(profile));
       if (payload.byteLength > 8000000) throw Error('Embedded voice profile too large.');
-      setStatus('Downloading Windows reader engine…');
+      setStatus('Checking the latest published Windows build…');
+      const infoReply = await fetch('../download/build-info.json', {cache: 'no-store'});
+      if (!infoReply.ok) throw Error('Build verification file is missing; wait for the updated GitHub Pages deployment.');
+      const info = await infoReply.json();
+      if (info.architecture !== 'windows-x64' || !/^[a-f0-9]{64}$/i.test(info.sha256)) {
+        throw Error('Invalid EXE build metadata. Refusing to download.');
+      }
+      setStatus('Downloading Windows reader engine (' + info.revision + ')…');
       const r = await fetch('../download/ClipboardReader-Base.exe', {cache: 'no-store'});
-      if (!r.ok) throw Error('Windows engine is not published. Check the GitHub Actions build (HTTP ' + r.status + ').');
+      if (!r.ok) throw Error('Windows engine is not published. Check GitHub Actions (HTTP ' + r.status + ').');
       const engine = await r.blob();
-      if (engine.size < 500000) throw Error('Published Windows engine is unexpectedly small.');
+      if (engine.size !== info.size || engine.size < 500000) {
+        throw Error('Incomplete Windows EXE download. Expected ' + info.size + ' bytes; received ' + engine.size + '.');
+      }
+      setStatus('Verifying downloaded Windows EXE SHA-256…');
+      const binary = await engine.arrayBuffer();
+      const view = new DataView(binary);
+      const data = new Uint8Array(binary);
+      const ascii = (offset, len) => new TextDecoder('ascii').decode(data.subarray(offset, offset + len));
+      if (ascii(0, 2) !== 'MZ') throw Error('Windows executable header is missing.');
+      const peOffset = view.getUint32(0x3c, true);
+      if (peOffset < 64 || peOffset + 6 > data.length || ascii(peOffset, 4) !== 'PE\\0\\0'.replace(/\\0/g, String.fromCharCode(0))) {
+        throw Error('The downloaded file has an invalid Windows PE signature.');
+      }
+      if (view.getUint16(peOffset + 4, true) !== 0x8664) {
+        throw Error('The Windows executable is not x64.');
+      }
+      if (ascii(data.length - 16, 8) !== 'CVRZIP01') throw Error('The Windows engine ZIP bundle is missing.');
+      const zipSize = Number(view.getBigUint64(data.length - 8, true));
+      const zipStart = data.length - 16 - zipSize;
+      if (zipSize < 1000000 || zipStart < 1024 || ascii(zipStart, 2) !== 'PK') {
+        throw Error('The bundled reader is truncated or corrupted.');
+      }
+      const digest = await crypto.subtle.digest('SHA-256', binary);
+      const actualHash = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2,'0')).join('');
+      if (actualHash !== info.sha256.toLowerCase()) {
+        throw Error('The EXE integrity check failed. Reload the site and export again.');
+      }
+      setStatus('Verified Windows EXE build ' + info.revision + '; embedding your voice…');
       const footer = new Uint8Array(16);
       footer.set(new TextEncoder().encode('CVRCFG01'));
       new DataView(footer.buffer).setBigUint64(8, BigInt(payload.byteLength), true);
       setStatus('Embedding your voice into the executable locally…');
-      saveFile(new Blob([engine, payload, footer], {type:'application/octet-stream'}), 'ClipboardVoice.exe');
-      setStatus('EXE downloaded. Copy text on Windows, launch it, and use the red STOP button if needed.');
+      saveFile(new Blob([engine, payload, footer], {type:'application/octet-stream'}), 'ClipboardVoice-' + info.revision + '.exe');
+      setStatus('Verified EXE (' + info.revision + ') downloaded. Test it from the Windows Desktop, not directly in Shared.');
     } catch (e) {
       setStatus('Export failed: ' + (e.message || String(e)), true);
     } finally { updateButton(); }
