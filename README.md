@@ -17,7 +17,7 @@ Live site after GitHub Pages deployment: https://tbenitz.github.io/supertonic3gp
 
 The site does **not** send the audio recording, voice embedding or narration text to a cloning API. The browser uses ONNX Runtime Web and WASM. Model assets are downloaded from Hugging Face on first run and cached by the browser. The packaged Windows EXE also downloads model assets once on first use, then generates locally.
 
-**Note:** The browser preview uses a community ONNX/WASM runtime, while the Windows EXE uses Kyutai's native CPU runtime. Both use Pocket TTS and the same reference PCM; small differences in playback may occur between implementations. Model downloads, browser memory limits, and Windows CPU speed affect performance.
+**Note:** The browser preview uses an ONNX/WASM runtime, while the Windows EXE uses KevinAHM's public Python ONNX Runtime implementation. Both use Pocket TTS and the same reference PCM; small differences in playback may occur between implementations. Model downloads, browser memory limits, and Windows CPU speed affect performance.
 
 ## Publish the repository
 
@@ -28,7 +28,7 @@ The site does **not** send the audio recording, voice embedding or narration tex
 5. Open https://tbenitz.github.io/supertonic3gpt-clone/ and test the audio preview and EXE download.
 6. On Windows, test startup, microphone/voice conditioning, speech, Stop, and automatic exit after speaking ends.
 
-The workflow uses a Windows runner to package the speech reader with PyInstaller and the official Kyutai Pocket TTS Windows CPU binary. The website downloads a shared base EXE and appends each visitor's voice profile **in the browser**. Neither profile nor reference WAV goes into GitHub Actions.
+The workflow uses a Windows runner to package the Pocket TTS ONNX speech reader with PyInstaller. The Windows EXE uses the public KevinAHM ONNX voice-cloning bundles (CC BY 4.0), not Kyutai's gated native CLI model. On first use it downloads only the selected language's INT8 models from Hugging Face to the user's local model cache; no account or voice uploads are required. The website downloads a shared base EXE and appends each visitor's voice profile **in the browser**. Neither profile nor reference WAV goes into GitHub Actions.
 
 The browser studio is built during deployment from a **pinned upstream revision** of https://github.com/hemanth/pocket-voice, then customized by `tools/customize_pocket.py`, `web/pocket-theme.css` and `web/pocket-export.js`. Source code remains editable here; no code from an unreviewed rolling branch is loaded at deploy time.
 
@@ -38,7 +38,8 @@ The browser studio is built during deployment from a **pinned upstream revision*
 - `web/pocket-export.js` — waits for a completed generated voice preview, then packages voice WAV into the EXE locally
 - `web/pocket-theme.css` — navy/slate/cyan design matching the main site
 - `tools/customize_pocket.py` — sets `tbenitz` branding, removes unrelated website/social tags, wires preview+export
-- `desktop/engine/reader.py` — local Pocket TTS generation, blocking audio playback, red Stop button, exit at end
+- `desktop/engine/reader.py` — public Pocket ONNX voice cloning, low-latency streamed audio playback, red Stop button and automatic exit
+- `.github/workflows/smoke-onnx.yml` — manual Windows voice-cloning smoke test that downloads models and produces an audible WAV
 - `desktop/launcher/Program.cs` — Windows clipboard capture and profile extraction
 - `.github/workflows/build-deploy.yml` — Windows EXE and GitHub Pages builder
 - `.github/workflows/check.yml` — static source and Python/JavaScript syntax checks
@@ -52,4 +53,4 @@ The browser studio is built during deployment from a **pinned upstream revision*
 
 The visitor-facing footer identifies **tbenitz** as the creator of this website/adaptation. Upstream attribution remains in `web/pocket/ATTRIBUTION.txt` after publishing. Only clone voices you own or are explicitly authorized to use. Do not impersonate someone deceptively.
 
-This README documents the intended behavior; the published build and a Windows run must be tested before claiming every binary works.
+If inference fails, the reader now shows the complete error in a Windows dialog, saves details under `%LOCALAPPDATA%\\ClipboardVoiceStudio\\last-error.txt`, and exits after dismissal rather than leaving the Stop button stuck. The manual **Verify Pocket TTS ONNX speech** workflow exercises actual model download, reference-audio encoding, and WAV generation. The published EXE should still be tested on the target Windows PC to confirm sound output, Stop and automatic exit.

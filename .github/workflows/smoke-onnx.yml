@@ -1,0 +1,51 @@
+name: Verify Pocket TTS ONNX speech (manual)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: windows-2022
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install public ONNX inference dependencies
+        shell: pwsh
+        run: |
+          python -m pip install -r desktop/engine/requirements.txt
+          Invoke-WebRequest -Uri 'https://huggingface.co/KevinAHM/pocket-tts-onnx/resolve/58a6d00cf13d239b6748cb0769f35c580a8f606c/pocket_tts_onnx.py' -OutFile desktop/engine/pocket_tts_onnx.py
+      - name: Download model, clone reference and generate audible WAV
+        shell: pwsh
+        run: |
+          @'
+          import os, sys, threading
+          from pathlib import Path
+          from huggingface_hub import hf_hub_download
+          sys.path.insert(0, "desktop/engine")
+          from reader import ensure_public_models
+          from pocket_tts_onnx import PocketTTSOnnx
+          import numpy as np
+          import soundfile as sf
+          models = ensure_public_models(Path("model-cache"), "english_2026-04", print, threading.Event())
+          print("ONNX model files:", [p.name for p in (models / "english_2026-04").glob("*")])
+          sample = hf_hub_download(repo_id="KevinAHM/pocket-tts-onnx", filename="reference_sample.wav", token=False)
+          model = PocketTTSOnnx(models_dir=str(models), language="english_2026-04", precision="int8", device="cpu")
+          voice = model.encode_voice(sample)
+          print("Voice embedding shape:", np.asarray(voice).shape)
+          chunks = [np.asarray(a).reshape(-1) for a in model.stream("Hello, this is a local voice cloning test.", voice=voice)]
+          if not chunks:
+              raise RuntimeError("Pocket ONNX returned no audio chunks")
+          audio = np.concatenate(chunks)
+          if len(audio) < model.sample_rate // 2 or not np.all(np.isfinite(audio)):
+              raise RuntimeError("Pocket ONNX returned missing or invalid audio")
+          sf.write("smoke-voice.wav", audio, model.sample_rate)
+          print("SUCCESS:", len(audio) / model.sample_rate, "seconds of generated audio")
+          '@ | python -
+      - uses: actions/upload-artifact@v4
+        with:
+          name: smoke-pocket-voice-wav
+          path: smoke-voice.wav
+          retention-days: 7
