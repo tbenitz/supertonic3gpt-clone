@@ -56,6 +56,35 @@ jobs:
           New-Item -ItemType Directory -Force -Path web/download | Out-Null
           Compress-Archive -Path dist/reader/* -DestinationPath runtime.zip -CompressionLevel Optimal
           python tools/append_bundle.py launcher-out/ClipboardVoiceLauncher.exe runtime.zip web/download/ClipboardReader-Base.exe
+      - name: Smoke-test actual Windows EXE loader and embedded voice overlay
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $base = (Resolve-Path 'web/download/ClipboardReader-Base.exe').Path
+          $bytes = [System.IO.File]::ReadAllBytes($base)
+          if ([System.Text.Encoding]::ASCII.GetString($bytes,0,2) -ne 'MZ') { throw 'EXE lacks MZ signature' }
+          $pe = [BitConverter]::ToInt32($bytes,0x3c)
+          if ([System.Text.Encoding]::ASCII.GetString($bytes,$pe,4) -ne "PE`0`0") { throw 'Invalid PE header' }
+          if ([BitConverter]::ToUInt16($bytes,$pe+4) -ne 0x8664) { throw 'EXE is not Windows x64' }
+          if ([System.Text.Encoding]::ASCII.GetString($bytes,$bytes.Length-16,8) -ne 'CVRZIP01') { throw 'Missing reader ZIP trailer' }
+          # Confirm the Windows OS can actually execute the launcher, not just inspect it.
+          $p = Start-Process -FilePath $base -ArgumentList '--self-test' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Base EXE failed to run (exit code $($p.ExitCode))" }
+          $personalized = Join-Path (Get-Location) 'ClipboardVoice-smoke.exe'
+          Copy-Item $base $personalized
+          $profileJson = '{"engine":"pocket","voice_wav_b64":"' + ('A' * 1500000) + '"}'
+          $payload = [System.Text.Encoding]::UTF8.GetBytes($profileJson)
+          $out = [System.IO.File]::Open($personalized,[System.IO.FileMode]::Append)
+          try {
+            $out.Write($payload,0,$payload.Length)
+            $footer = [System.Text.Encoding]::ASCII.GetBytes('CVRCFG01')
+            $out.Write($footer,0,$footer.Length)
+            $sizeBytes = [BitConverter]::GetBytes([long]$payload.Length)
+            $out.Write($sizeBytes,0,$sizeBytes.Length)
+          } finally { $out.Dispose() }
+          $p = Start-Process -FilePath $personalized -ArgumentList '--self-test' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Personalized EXE failed to run (exit code $($p.ExitCode))" }
+          Write-Host 'PASS: Base and personalized Windows PE programs both launch successfully.'
       - uses: actions/upload-artifact@v4
         with:
           name: windows-base-exe
