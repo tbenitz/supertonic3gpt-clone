@@ -118,7 +118,7 @@
       const payload = new TextEncoder().encode(JSON.stringify(profile));
       if (payload.byteLength > 8000000) throw Error('Embedded voice profile too large.');
       setStatus('Downloading Windows reader engine…');
-      const r = await fetch('../download/ClipboardReader-Base.exe', {cache: 'force-cache'});
+      const r = await fetch('../download/ClipboardReader-Base.exe', {cache: 'no-store'});
       if (!r.ok) throw Error('Windows engine is not published. Check the GitHub Actions build (HTTP ' + r.status + ').');
       const engine = await r.blob();
       if (engine.size < 500000) throw Error('Published Windows engine is unexpectedly small.');
