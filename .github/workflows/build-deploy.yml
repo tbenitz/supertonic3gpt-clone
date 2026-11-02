@@ -56,6 +56,14 @@ jobs:
           New-Item -ItemType Directory -Force -Path web/download | Out-Null
           Compress-Archive -Path dist/reader/* -DestinationPath runtime.zip -CompressionLevel Optimal
           python tools/append_bundle.py launcher-out/ClipboardVoiceLauncher.exe runtime.zip web/download/ClipboardReader-Base.exe
+          $binary = 'web/download/ClipboardReader-Base.exe'
+          $metadata = @{
+            sha256 = (Get-FileHash $binary -Algorithm SHA256).Hash.ToLowerInvariant()
+            size = (Get-Item $binary).Length
+            revision = $env:GITHUB_SHA.Substring(0, 10)
+            architecture = 'windows-x64'
+          } | ConvertTo-Json -Compress
+          [System.IO.File]::WriteAllText((Join-Path (Get-Location) 'web/download/build-info.json'), $metadata, (New-Object System.Text.UTF8Encoding($false)))
       - name: Smoke-test actual Windows EXE loader and embedded voice overlay
         shell: pwsh
         run: |
@@ -88,7 +96,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: windows-base-exe
-          path: web/download/ClipboardReader-Base.exe
+          path: web/download/
           retention-days: 14
           compression-level: 0
   deploy:
