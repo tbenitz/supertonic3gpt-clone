@@ -44,6 +44,14 @@ jobs:
             --collect-all soundfile --hidden-import pocket_tts_onnx `
             desktop/engine/reader.py
           if (-not (Test-Path dist/reader/reader.exe)) { throw 'Reader build failed' }
+      - name: Verify frozen windowed reader handles Hugging Face without a console
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $binary = (Resolve-Path 'dist/reader/reader.exe').Path
+          $p = Start-Process -FilePath $binary -ArgumentList '--self-test-headless' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Windowed reader failed its no-console progress test (exit $($p.ExitCode))" }
+          Write-Host 'PASS: Frozen --windowed Python reader handles Hugging Face tqdm without stdout/stderr.'
       - name: Build native Windows launcher
         shell: pwsh
         run: |
