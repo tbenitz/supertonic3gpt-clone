@@ -128,6 +128,16 @@ def ensure_public_models(root, language, progress, stopped):
 
 def run():
     configure_headless_runtime()
+    if len(sys.argv) == 2 and sys.argv[1] == "--self-test-headless":
+        # Executed by GitHub Actions inside the real PyInstaller --windowed
+        # binary, where stdout/stderr are absent. Exercise the same progress
+        # setup that failed in the user's Windows screenshot.
+        from huggingface_hub.utils.tqdm import tqdm as hub_tqdm, disable_progress_bars
+        disable_progress_bars()
+        with hub_tqdm(total=1, desc="Headless download self-check") as bar:
+            bar.update(1)
+        return
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--input-file", required=True)
     parser.add_argument("--config-file", required=True)
