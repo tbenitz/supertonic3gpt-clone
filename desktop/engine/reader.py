@@ -77,6 +77,20 @@ def model_file_names(language):
     return [f"onnx/{lang}/{filename}" for filename in MODEL_FILES]
 
 
+def configure_headless_runtime():
+    """Keep library downloads working inside a PyInstaller --windowed EXE.
+
+    A no-console executable has sys.stdout/sys.stderr = None. tqdm and some
+    model libraries expect writable streams and can otherwise crash before
+    inference starts. Disable CLI progress output and supply safe sinks.
+    """
+    os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+    for name in ("stdout", "stderr"):
+        stream = getattr(sys, name, None)
+        if stream is None or not callable(getattr(stream, "write", None)):
+            setattr(sys, name, open(os.devnull, "w", encoding="utf-8"))
+
+
 def ensure_public_models(root, language, progress, stopped):
     """Download public, version-pinned ONNX assets into a persistent per-user cache.
 
@@ -85,7 +99,13 @@ def ensure_public_models(root, language, progress, stopped):
     """
     if stopped.is_set():
         return None
+    configure_headless_runtime()
     from huggingface_hub import hf_hub_download
+    from huggingface_hub.utils import disable_progress_bars
+
+    # A CLI-style tqdm bar serves no purpose in the floating STOP window.
+    # This call also protects frozen apps whose stderr is initially None.
+    disable_progress_bars()
 
     root = Path(root)
     paths = model_file_names(language)
@@ -107,6 +127,7 @@ def ensure_public_models(root, language, progress, stopped):
 
 
 def run():
+    configure_headless_runtime()
     parser = argparse.ArgumentParser()
     parser.add_argument("--input-file", required=True)
     parser.add_argument("--config-file", required=True)
