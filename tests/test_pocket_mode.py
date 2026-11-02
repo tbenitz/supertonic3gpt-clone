@@ -32,10 +32,10 @@ class LocalPocketTests(unittest.TestCase):
     def test_native_reader_uses_pocket_only(self):
         reader = (ROOT / "desktop/engine/reader.py").read_text(encoding="utf-8")
         launcher = (ROOT / "desktop/launcher/Program.cs").read_text(encoding="utf-8")
-        self.assertIn("pocket-tts.exe", reader)
-        self.assertIn("'--output-path', str(wav_path)", reader)
-        self.assertIn("blocking=True", reader)
-        self.assertIn("p.kill()", reader)
+        self.assertIn("from pocket_tts_onnx import PocketTTSOnnx", reader)
+        self.assertIn("tts.stream(segment, voice=voice_embeddings)", reader)
+        self.assertIn("speaker.stop()", reader)
+        self.assertIn("messagebox.showerror", reader)
         self.assertNotIn("from supertonic", reader)
         self.assertIn("voice_wav_b64", launcher)
 
@@ -44,7 +44,7 @@ class LocalPocketTests(unittest.TestCase):
         self.assertIn("tools/customize_pocket.py", workflow)
         self.assertIn("web/pocket-theme.css", workflow)
         self.assertIn("web/pocket-export.js", workflow)
-        self.assertIn("pocket-tts-3.3.0-x86_64-pc-windows-msvc.zip", workflow)
+        self.assertIn("KevinAHM/pocket-tts-onnx", workflow)
 
 if __name__ == "__main__":
     unittest.main()

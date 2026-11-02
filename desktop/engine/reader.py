@@ -83,6 +83,8 @@ def ensure_public_models(root, language, progress, stopped):
     No Hugging Face account or token is needed. Only model weights are downloaded.
     The user's clipboard and voice sample are never sent to the Hub.
     """
+    if stopped.is_set():
+        return None
     from huggingface_hub import hf_hub_download
 
     root = Path(root)
