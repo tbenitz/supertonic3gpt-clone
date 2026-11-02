@@ -19,6 +19,8 @@ static class Program
     [DllImport("kernel32.dll", SetLastError = true)] private static extern bool GlobalUnlock(IntPtr hMem);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int MessageBoxW(IntPtr hWnd, string text, string caption, uint type);
     const uint CF_UNICODETEXT = 13;
+    // Never write a BOM into files consumed by Python or CLI readers.
+    private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
     static string ReadClipboard()
     {
         // Capture at process start, BEFORE any model download or engine extraction.
@@ -133,7 +135,7 @@ static class Program
             try
             {
                 var inputPath = Path.Combine(job, "clipboard.txt");
-                File.WriteAllText(inputPath, clipboard, Encoding.UTF8);
+                File.WriteAllText(inputPath, clipboard, Utf8NoBom);
                 var configPath = Path.Combine(job, "profile.json");
                 using var doc = JsonDocument.Parse(configJson);
                 var cfg = doc.RootElement;
@@ -156,12 +158,12 @@ static class Program
                 if (cfg.TryGetProperty("style", out var style) && style.ValueKind == JsonValueKind.Object)
                 {
                     customStyle = Path.Combine(job, "voice.json");
-                    File.WriteAllText(customStyle, style.GetRawText(), Encoding.UTF8);
+                    File.WriteAllText(customStyle, style.GetRawText(), Utf8NoBom);
                 }
                 File.WriteAllText(configPath, JsonSerializer.Serialize(new ReaderProfile
                 {
                     Voice = voice, Language = lang, Speed = speed, Steps = steps, StylePath = customStyle, Engine = engineMode, VoicePath = pocketVoicePath
-                }, ReaderProfileJsonContext.Default.ReaderProfile), Encoding.UTF8);
+                }, ReaderProfileJsonContext.Default.ReaderProfile), Utf8NoBom);
                 using var process = Process.Start(new ProcessStartInfo
                 {
                     FileName = engine,

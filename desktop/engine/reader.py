@@ -35,6 +35,11 @@ def split_text(text: str, size: int = 320):
     return [s for s in chunks if s]
 
 
+def load_profile(path):
+    """Accept legacy UTF-8 BOM profiles as well as clean UTF-8 JSON."""
+    return json.loads(Path(path).read_text(encoding='utf-8-sig'))
+
+
 def run():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input-file', required=True)
@@ -42,7 +47,7 @@ def run():
     args = parser.parse_args()
 
     text = Path(args.input_file).read_text(encoding='utf-8-sig').strip()
-    config = json.loads(Path(args.config_file).read_text(encoding='utf-8'))
+    config = load_profile(args.config_file)
     if not text:
         return
 
